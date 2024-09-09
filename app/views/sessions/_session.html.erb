@@ -1,0 +1,53 @@
+<div id="<%= dom_id session %>" class="max-w-prose flex flex-col gap-4">
+
+  <p>Current Cost: <%= session.cost %></p>
+
+  <% session.messages(nil).each do |msg| %>
+    <p class="font-mono whitespace-pre-wrap"><%= msg[:content] %></p>
+  <% end %>
+
+  <h1>Inventory</h1>
+  <dl>
+    <% session.state.inventory.each do |name, item| %>
+      <dt><%= name %></dt>
+      <dd><%= item[:amount] %></dd>
+    <% end %>
+  </dl>
+
+  <h1>Session</h1>
+  <% session.log.each do |item| %>
+    <% if item[:role] == :user %>
+      <p class="p-4 bg-green-100"><%= item[:content] %></p>
+    <% elsif item[:role] == :assistant %>
+      <% (item[:tool_calls] || []).each do |call| %>
+        <% if call[:type] == 'function' %>
+          <p class="font-mono whitespace-pre-wrap"><%= "function #{call[:function][:name]}" %></p>
+          <% JSON.parse(call[:function][:arguments]).each do |key, value| %>
+            <p class="font-mono whitespace-pre-wrap"><%= "#{key}: #{value}" %></p>
+          <% end %>
+        <% else %>
+          <p class="font-mono whitespace-pre-wrap">Unknown tool call type <%= call[:type] %></p>
+        <% end %>
+      <% end %>
+      <% if item[:content] %>
+        <p class="p-4 bg-parchment-500"><%= item[:content] %></p>
+      <% end %>
+    <% elsif item[:role] == :tool %>
+      <p class="font-mono whitespace-pre-wrap"><%= "tool #{item[:name]}: #{item[:content]}" %></p>
+    <% else %>
+      <p class="font-mono whitespace-pre-wrap">Unknown role <%= item[:role] %></p>
+    <% end %>
+  <% end %>
+  <p class="font-mono whitespace-pre-wrap"><%= session.status %></p>
+
+  <div>
+    <%= form_with url: prompt_session_path(session), class: "flex flex-col" do |form| %>
+      <%= form.text_area :input, size: "80x10" %>
+      <div class="flex flex-row justify-between">
+        <%= form.submit "Prompt", class: "btn btn-primary" %>
+        <%= form.submit "Clear", class: "btn btn-warning", formaction: clear_session_path(session) %>
+      </div>
+    <% end %>
+  </div>
+
+</div>

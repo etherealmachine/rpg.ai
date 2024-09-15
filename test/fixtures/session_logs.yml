@@ -2,13 +2,15 @@
 #
 # Table name: session_logs
 #
-#  id         :integer          not null, primary key
-#  deleted    :boolean
-#  request    :json
-#  response   :json
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  session_id :integer
+#  id           :integer          not null, primary key
+#  content      :string
+#  role         :string
+#  template     :string
+#  tool_calls   :json
+#  created_at   :datetime         not null
+#  updated_at   :datetime         not null
+#  session_id   :integer
+#  tool_call_id :string
 #
 # Indexes
 #

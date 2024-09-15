@@ -13,15 +13,18 @@
 ActiveRecord::Schema[7.1].define(version: 2024_05_30_022726) do
   create_table "session_logs", force: :cascade do |t|
     t.integer "session_id"
-    t.json "request"
-    t.json "response"
-    t.boolean "deleted"
+    t.string "role"
+    t.string "template"
+    t.string "content"
+    t.json "tool_calls"
+    t.string "tool_call_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["session_id"], name: "index_session_logs_on_session_id"
   end
 
   create_table "sessions", force: :cascade do |t|
+    t.decimal "cost"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end

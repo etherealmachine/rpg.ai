@@ -13,11 +13,6 @@ module RpgAi
 
       def published_function_specs
         @published_methods.map do |method_name, description, properties|
-          required = properties.filter do |_argname, spec|
-            spec[:required]
-          end.map do |argname, _spec|
-            argname
-          end
           {
             type: 'function',
             function: {
@@ -29,7 +24,8 @@ module RpgAi
                   spec.delete(:required)
                   spec
                 end,
-                required: required,
+                required: properties.keys,
+                additionalProperties: false,
               },
             },
           }

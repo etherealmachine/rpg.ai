@@ -24,7 +24,6 @@ class Session < ApplicationRecord
   end
 
   def handle_response(response)
-    puts(response)
     choice = response.dig('choices', 0)
     finish_reason = choice.dig('finish_reason') # stop, length, function_call, content_filter, null
     message = choice.dig('message')
@@ -55,6 +54,7 @@ class Session < ApplicationRecord
 
   def status
     return :initial if logs.empty?
+    return :awaiting_player_input if logs.last[:role] == 'user'
     return :pending_classification if logs.last[:role] == 'system'
     return :awaiting_player_input if logs.last[:role] == 'assistant'
     return :tool_result if logs.last[:role] == 'tool'
@@ -67,6 +67,7 @@ class Session < ApplicationRecord
       content: input,
     ) if input.present?
     response = @client.chat(parameters: request(input))
+    puts(response) # TODO: Handle errors
     handle_response(response)
     self.update_attribute(:state, @state.to_json)
     self.update_attribute(:cost, (cost || 0) + calculate_cost(response))

@@ -70,32 +70,26 @@ module RpgAi
     end
 
     publish def describe_scene(params)
-      params[:description]
-    end, "Describe a scene", {
-      description: {
-        description: 'A description of the scene.',
+      ''
+    end, "A description of a scene and possible NPC dialog", {
+      narration: {
+        description: "The narration of the scene. Narration should include NPC's and dialog as necessary",
         type: :string,
       },
       npcs: {
+        description: 'Any NPCs that are included in the narration',
         type: :array,
-        description: 'Array of NPCs referred to in the scene',
         items: {
           type: :object,
           properties: {
             name: {
-              description: 'The name of the NPC.',
+              description: 'The name of the NPC. Make up a proper name if necessary',
               type: :string,
             },
-            reference: {
-              description: 'The string previously used to refer to the NPC, e.g. <Male dwarf>.',
-              type: :string,
-            },
-            description: {
-              description: 'A general description of the NPC.',
-              type: :string,
-            },
+            description: { type: :string },
           },
-          required: ['name', 'description']
+          required: ['name', 'description'],
+          additionalProperties: false,
         },
       },
     }
@@ -127,29 +121,24 @@ module RpgAi
       leverage: {
         description: 'The leverage the character claims to have over the NPC',
         type: :string,
-        required: true,
       },
       leverage_rating: {
         description: "How good is the leverage the character's claim to have?",
         type: :string,
         enum: ['Non-Existent', 'Trivial', 'Valuable', 'Critical'],
-        required: true,
       },
       leverage_reasoning: {
         description: "What is the reasoning behind the rating for the leverage?",
         type: :string,
-        required: true,
       },
       request_category: {
         description: "What is the category of the character(s) request?",
         type: :string,
         enum: ['nothing', 'item', 'action', 'influence'],
-        required: true,
       },
       request_summary: {
         description: "Summarize what the character(s) are asking for",
         type: :string,
-        required: true,
       },
     }
 
@@ -168,17 +157,14 @@ module RpgAi
       known: {
         description: 'Would the NPC reasonably know the anwswer?',
         type: :boolean,
-        required: true,
       },
       hidden: {
         description: 'Would the NPC prefer to hide their anwswer?',
         type: :boolean,
-        required: true,
       },
       secret: {
         description: "Does the question relate to one of the NPC's secrets?",
         type: :boolean,
-        required: true,
       },
     }
 
@@ -194,12 +180,10 @@ module RpgAi
       object: {
         description: 'The name of the object.',
         type: :string,
-        required: true,
       },
       action: {
         description: 'The action being taken with or on the object.',
         type: :string,
-        required: true,
       },
     }
 
@@ -221,17 +205,14 @@ module RpgAi
       name: {
         description: 'The name of the NPC.',
         type: :string,
-        required: true,
       },
       reference: {
         description: 'The string previously used to refer to the NPC, e.g. <Male dwarf>.',
         type: :string,
-        required: false,
       },
       description: {
         description: 'A general description of the NPC.',
         type: :string,
-        required: true,
       }
     }
 
@@ -242,12 +223,10 @@ module RpgAi
       new_location: {
         description: 'The name of the new location.',
         type: :string,
-        required: true,
       },
       summary: {
         description: 'Summary of events at the current location.',
         type: :string,
-        required: true,
       },
     }
 
@@ -259,12 +238,10 @@ module RpgAi
       item: {
         description: 'The name of the item(s).',
         type: :string,
-        required: true,
       },
       amount: {
         description: 'The amount of the item(s) gained.',
         type: :number,
-        required: true,
       },
     }
 
@@ -276,12 +253,10 @@ module RpgAi
       item: {
         description: 'The name of the item(s).',
         type: :string,
-        required: true,
       },
       amount: {
         description: 'The amount of the item(s) lost.',
         type: :number,
-        required: true,
       },
     }
   end

@@ -54,10 +54,12 @@ class SessionsController < ApplicationController
   end
 
   def prompt
-    @session.prompt(params[:input])
-    respond_to do |format|
-      format.html { redirect_to session_url(@session) }
-      format.json { render :show, status: :ok, location: @session }
+    if request.post?
+      @session.prompt(params[:input])
+      respond_to do |format|
+        format.html { redirect_to session_url(@session) }
+        format.json { render :show, status: :ok, location: @session }
+      end
     end
   end
 

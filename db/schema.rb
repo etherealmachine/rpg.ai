@@ -25,6 +25,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_05_30_022726) do
 
   create_table "sessions", force: :cascade do |t|
     t.decimal "cost"
+    t.json "state"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end

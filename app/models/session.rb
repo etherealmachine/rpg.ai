@@ -4,6 +4,7 @@
 #
 #  id         :integer          not null, primary key
 #  cost       :decimal(, )
+#  state      :json
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
 #
@@ -11,7 +12,6 @@ class Session < ApplicationRecord
   has_many :logs, foreign_key: 'session_id', class_name: 'SessionLog'
 
   after_initialize :custom_initialization
-  attr_reader :state
 
   def custom_initialization
     @log = []
@@ -20,10 +20,11 @@ class Session < ApplicationRecord
     )
     #@model = 'gpt-3.5-turbo-0125'
     @model = 'gpt-4o-2024-05-13'
-    @state = RpgAi::State.new
+    @state = RpgAi::State.from_json(self.state)
   end
 
   def handle_response(response)
+    puts(response)
     choice = response.dig('choices', 0)
     finish_reason = choice.dig('finish_reason') # stop, length, function_call, content_filter, null
     message = choice.dig('message')
@@ -43,7 +44,7 @@ class Session < ApplicationRecord
       id = call.dig('id')
       method = call.dig('function', 'name')
       params = JSON.parse(call.dig('function', 'arguments'))
-      result = state.method(method).call(params.symbolize_keys)
+      result = @state.method(method).call(params.symbolize_keys)
       logs << SessionLog.new(
         role: :tool,
         content: result.as_json,
@@ -61,26 +62,32 @@ class Session < ApplicationRecord
   end
 
   def prompt(input)
-    request = {
-      model: @model,
-      messages: messages(input),
-      temperature: 0.7,
-      tools: state.class.published_function_specs
-    }
     logs << SessionLog.new(
       role: :user,
       content: input,
     ) if input.present?
-    response = @client.chat(parameters: request)
+    response = @client.chat(parameters: request(input))
     handle_response(response)
+    self.update_attribute(:state, @state.to_json)
     self.update_attribute(:cost, (cost || 0) + calculate_cost(response))
+  end
+
+  def request(input)
+    {
+      model: @model,
+      messages: messages(input),
+      temperature: 0.7,
+      tools: @state.class.published_function_specs,
+    }
   end
 
   def messages(input)
     messages = [
       { role: :system, template: :system },
-      { role: :system, template: :object_description },
-    ].concat(logs)
+      { role: :system, template: :location_description },
+    ].concat(logs.map do |log|
+      { role: log.role, content: log.content, tool_calls: log.tool_calls, tool_call_id: log.tool_call_id }.compact
+    end)
     if input.present?
       messages << { role: :user, content: input }
     end
@@ -92,13 +99,16 @@ class Session < ApplicationRecord
     when :tool_result
     end
     messages.filter { |msg| msg[:template].present? }.each do |msg|
-      msg[:content] = RpgAi::Templates.get(msg[:template]).result_with_hash(state.current)
+      msg[:content] = RpgAi::Templates.get(msg[:template]).result_with_hash({
+        state: @state,
+      })
     end
     messages
   end
 
   def clear!
     logs.destroy_all
+    self.update_attribute(:state, nil)
   end
 
   def calculate_cost(response)

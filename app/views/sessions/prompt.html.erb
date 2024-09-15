@@ -1,0 +1,5 @@
+<div id="<%= dom_id @session %>" class="max-w-prose flex flex-col gap-4">
+
+  <p class="font-mono whitespace-pre-wrap"><%= JSON.pretty_generate(@session.request(nil)) %></p>
+
+</div>

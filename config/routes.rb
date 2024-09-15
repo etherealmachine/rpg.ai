@@ -7,6 +7,7 @@ Rails.application.routes.draw do
 
   resources :sessions do
     member do
+      get 'prompt'
       post 'prompt'
       post 'clear'
     end

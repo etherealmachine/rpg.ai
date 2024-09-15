@@ -2,19 +2,14 @@
 
   <p>Current Cost: <%= session.cost %></p>
 
-  <% session.messages(nil).each do |msg| %>
-    <p class="font-mono whitespace-pre-wrap"><%= msg[:content] %></p>
-  <% end %>
-
   <h1>Inventory</h1>
   <dl>
-    <% session.state.inventory.each do |name, item| %>
+    <% (session.state || {})[:inventory]&.each do |name, item| %>
       <dt><%= name %></dt>
       <dd><%= item[:amount] %></dd>
     <% end %>
   </dl>
 
-  <h1>Session</h1>
   <% session.logs.each do |item| %>
     <% if item.role == 'user' %>
       <p class="p-4 bg-green-100"><%= item.content %></p>
@@ -38,7 +33,6 @@
       <p class="font-mono whitespace-pre-wrap">Unknown role <%= item[:role] %></p>
     <% end %>
   <% end %>
-  <p class="font-mono whitespace-pre-wrap"><%= session.status %></p>
 
   <div>
     <%= form_with url: prompt_session_path(session), class: "flex flex-col" do |form| %>

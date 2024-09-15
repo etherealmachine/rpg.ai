@@ -1,0 +1,24 @@
+<%= state.current_location %>
+
+<%= state.location[:description] %>
+
+<%- if state.location[:objects] -%>
+Objects:
+<%- state.location[:objects].each do |obj| -%>
+  - <%= obj[:name] %>: <%= obj[:description] %>
+<%- end -%>
+<%- end -%>
+
+<%- if state.location[:hooks] -%>
+Hooks:
+<%- state.location[:hooks].each do |hook| -%>
+  - <%= hook %>
+<%- end -%>
+<%- end -%>
+
+<%- if state.location[:locations] -%>
+Locations:
+<%- state.location[:locations].each do |loc| -%>
+  - <%= loc %> (<%= state.locations[loc][:description] %>)
+<%- end -%>
+<%- end -%>

@@ -6,3 +6,11 @@ Make up names or content as directed by system prompts like <Make up a name> or
 <Make up a profession>.
 
 Speak in the present tense.
+
+
+<%- if state.scenes -%>
+Session summary:
+<%- state.scenes.each do |scene| -%>
+  - <%= scene[:location] %>: <%= scene[:summary] %>
+<%- end -%>
+<%- end -%>

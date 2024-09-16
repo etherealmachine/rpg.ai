@@ -16,9 +16,11 @@ Hooks:
 <%- end -%>
 <%- end -%>
 
+Connected Locations:
 <%- if state.location[:locations] -%>
-Locations:
 <%- state.location[:locations].each do |loc| -%>
   - <%= loc %> (<%= state.locations[loc][:description] %>)
 <%- end -%>
+<%- else -%>
+  - None
 <%- end -%>

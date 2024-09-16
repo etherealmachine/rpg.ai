@@ -2,7 +2,7 @@ module RpgAi
   class State
     include OpenAiFunctions
 
-    attr_reader :inventory, :locations, :current_location
+    attr_reader :inventory, :locations, :scenes, :current_location
 
     def initialize(json: nil)
       @inventory = json&.dig(:inventory) || {}
@@ -51,6 +51,7 @@ module RpgAi
         },
       }
       @current_location = json&.dig(:current_location) || 'Archenbridge'
+      @scenes = json&.dig(:scenes) || []
     end
 
     def to_json
@@ -58,6 +59,7 @@ module RpgAi
         inventory:,
         locations:,
         current_location:,
+        scenes:,
       }
     end
 
@@ -69,30 +71,46 @@ module RpgAi
       @locations[@current_location]
     end
 
-    publish def describe_scene(params)
-      ''
-    end, "A description of a scene and possible NPC dialog", {
-      narration: {
-        description: "The narration of the scene. Narration should include NPC's and dialog as necessary",
-        type: :string,
-      },
-      npcs: {
-        description: 'Any NPCs that are included in the narration',
-        type: :array,
-        items: {
-          type: :object,
-          properties: {
-            name: {
-              description: 'The name of the NPC. Make up a proper name if necessary',
-              type: :string,
-            },
-            description: { type: :string },
+    def response_schema
+      {
+        type: :object,
+        properties: {
+          narration: {
+            description: "The narration of the scene. Narration should include NPC's and dialog as necessary",
+            type: :string,
           },
-          required: ['name', 'description'],
-          additionalProperties: false,
+          npcs: {
+            description: 'Any NPCs that are included in the narration',
+            type: :array,
+            items: {
+              type: :object,
+              properties: {
+                name: {
+                  description: 'The name of the NPC. Make up a proper name if necessary',
+                  type: :string,
+                },
+                reference: {
+                  description: 'The string previously used to refer to the NPC, e.g. <Male dwarf>.',
+                  type: :string,
+                },
+                description: { type: :string },
+              },
+              required: ['name', 'reference', 'description'],
+              additionalProperties: false,
+            },
+          },
         },
-      },
-    }
+        required: ['narration', 'npcs'],
+        additionalProperties: false,
+      }
+    end
+
+    def handle_response(response)
+      response[:npcs].each do |args|
+        self.update_npc(args)
+      end
+      response[:narration]
+    end
 
     publish def hack_and_slash(params)
       "TODO"
@@ -217,11 +235,19 @@ module RpgAi
     }
 
     publish def change_scene(params)
-      @current_location = params[:new_location]
-      "Location changed to #{@current_location}"
+      if locations.include?(params[:new_location])
+        scenes << {
+          location: @current_location,
+          summary: params[:summary],
+        }
+        @current_location = params[:new_location]
+        "Location changed to #{@current_location}"
+      else
+        "Location does not exist. If this location is part of the current location (a sub-location), continue with the scene. Otherwise, ask the user to clarify and give them the list of locations connected to the current one."
+      end
     end, "Move to a new location.", {
       new_location: {
-        description: 'The name of the new location.',
+        description: "The name of the new location. Must be one of the locations specified in the current location's description",
         type: :string,
       },
       summary: {

@@ -18,9 +18,13 @@ class Session < ApplicationRecord
     @client = OpenAI::Client.new(
       access_token: Rails.application.credentials.openai[:access_token]
     )
-    #@model = 'gpt-3.5-turbo-0125'
-    @model = 'gpt-4o-2024-05-13'
+    @model = 'gpt-4o-mini-2024-07-18'
+    #@model = 'gpt-4o-2024-08-06'
     @state = RpgAi::State.from_json(self.state)
+  end
+
+  def scene_logs
+    logs.where(scene: @state.scenes.count)
   end
 
   def handle_response(response)
@@ -28,16 +32,29 @@ class Session < ApplicationRecord
     finish_reason = choice.dig('finish_reason') # stop, length, function_call, content_filter, null
     message = choice.dig('message')
     if message['content']
-      logs << SessionLog.new(
-        role: :assistant,
-        content: message['content'],
-      )
+      logs << begin
+        SessionLog.new(
+          scene: @state.scenes.count,
+          role: :assistant,
+          content: @state.handle_response(JSON.parse(message['content']).with_indifferent_access),
+        )
+      rescue JSON::ParserError
+        SessionLog.new(
+          scene: @state.scenes.count,
+          role: :assistant,
+          content: message['content'],
+        )
+      end
     end
     tool_calls = (message['tool_calls'] || []).filter do |call|
       call.dig('type') == 'function'
     end
     if tool_calls.present?
-      logs << SessionLog.new(role: :assistant, tool_calls: tool_calls)
+      logs << SessionLog.new(
+        scene: @state.scenes.count,
+        role: :assistant,
+        tool_calls: tool_calls
+      )
     end
     tool_calls.each do |call|
       id = call.dig('id')
@@ -45,6 +62,8 @@ class Session < ApplicationRecord
       params = JSON.parse(call.dig('function', 'arguments'))
       result = @state.method(method).call(params.symbolize_keys)
       logs << SessionLog.new(
+        # Really ugly
+        scene: @state.scenes.count - (method == 'change_scene' && result.include?('changed') ? 1 : 0),
         role: :tool,
         content: result.as_json,
         tool_call_id: id,
@@ -53,16 +72,16 @@ class Session < ApplicationRecord
   end
 
   def status
-    return :initial if logs.empty?
-    return :awaiting_player_input if logs.last[:role] == 'user'
-    return :pending_classification if logs.last[:role] == 'system'
-    return :awaiting_player_input if logs.last[:role] == 'assistant'
-    return :tool_result if logs.last[:role] == 'tool'
+    return :initial if scene_logs.empty?
+    return :pending_classification if scene_logs.last[:role] == 'user'
+    return :awaiting_player_input if scene_logs.last[:role] == 'assistant'
+    return :tool_result if scene_logs.last[:role] == 'tool'
     return :unknown
   end
 
   def prompt(input)
     logs << SessionLog.new(
+      scene: @state.scenes.count,
       role: :user,
       content: input,
     ) if input.present?
@@ -74,19 +93,36 @@ class Session < ApplicationRecord
   end
 
   def request(input)
-    {
-      model: @model,
-      messages: messages(input),
-      temperature: 0.7,
-      tools: @state.class.published_function_specs,
-    }
+    if status == :pending_classification
+      {
+        model: @model,
+        messages: messages(input),
+        temperature: 0.7,
+        tools: @state.class.published_function_specs,
+        tool_choice: :required,
+      }
+    else
+      {
+        model: @model,
+        messages: messages(input),
+        temperature: 0.7,
+        response_format: {
+          type: :json_schema,
+          json_schema: {
+            name: :state_response,
+            schema: @state.response_schema,
+            strict: true,
+          },
+        },
+      }
+    end
   end
 
   def messages(input)
     messages = [
       { role: :system, template: :system },
       { role: :system, template: :location_description },
-    ].concat(logs.map do |log|
+    ].concat(scene_logs.map do |log|
       { role: log.role, content: log.content, tool_calls: log.tool_calls, tool_call_id: log.tool_call_id }.compact
     end)
     if input.present?
@@ -95,7 +131,7 @@ class Session < ApplicationRecord
     case status
     when :initial
       messages << { role: :system, template: :generate_description }
-    when :awaiting_player_input
+    when :pending_classification
       messages << { role: :system, template: :classify_response }
     when :tool_result
     end
@@ -118,12 +154,12 @@ class Session < ApplicationRecord
     model = response.dig('model')
     return 0 unless model && (input_tokens || output_tokens)
     coeffs = case model
-    when 'gpt-3.5-turbo-0125'
-      [0.5, 1.5]
-    when 'gpt-4o-2024-05-13'
-      [5.0, 15.0]
+    when 'gpt-4o-mini-2024-07-18'
+      [0.15, 0.60]
+    when 'gpt-4o-2024-08-06'
+      [2.50, 10.0]
     else
-      return "Unknown model #{model}"
+      throw "Unknown model #{model}"
     end
     input_tokens*(coeffs[0]/1_000_000) + output_tokens*(coeffs[1]/1_000_000)
   end

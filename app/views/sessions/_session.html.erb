@@ -10,27 +10,13 @@
     <% end %>
   </dl>
 
-  <% session.logs.each do |item| %>
+  <% session.scene_logs.each do |item| %>
     <% if item.role == 'user' %>
       <p class="p-4 bg-green-100"><%= item.content %></p>
     <% elsif item.role == 'assistant' %>
-      <% (item.tool_calls || []).each do |call| %>
-        <% if call['type'] == 'function' %>
-          <p class="font-mono whitespace-pre-wrap"><%= "#{call['id']} #{call['function']['name']}" %></p>
-          <% JSON.parse(call['function']['arguments']).each do |key, value| %>
-            <p class="font-mono whitespace-pre-wrap"><%= "#{key}: #{value}" %></p>
-          <% end %>
-        <% else %>
-          <p class="font-mono whitespace-pre-wrap">Unknown tool call type <%= call[:type] %></p>
-        <% end %>
-      <% end %>
       <% if item.content %>
         <p class="p-4 bg-parchment-500"><%= item.content %></p>
       <% end %>
-    <% elsif item.role == 'tool' %>
-      <p class="font-mono whitespace-pre-wrap"><%= "#{item.tool_call_id}: #{item.content}" %></p>
-    <% else %>
-      <p class="font-mono whitespace-pre-wrap">Unknown role <%= item[:role] %></p>
     <% end %>
   <% end %>
 

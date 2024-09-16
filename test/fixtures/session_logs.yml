@@ -5,6 +5,7 @@
 #  id           :integer          not null, primary key
 #  content      :string
 #  role         :string
+#  scene        :integer
 #  template     :string
 #  tool_calls   :json
 #  created_at   :datetime         not null

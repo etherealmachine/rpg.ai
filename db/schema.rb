@@ -13,6 +13,7 @@
 ActiveRecord::Schema[7.1].define(version: 2024_05_30_022726) do
   create_table "session_logs", force: :cascade do |t|
     t.integer "session_id"
+    t.integer "scene"
     t.string "role"
     t.string "template"
     t.string "content"

@@ -79,7 +79,7 @@ class Session < ApplicationRecord
     return :unknown
   end
 
-  def prompt(input)
+  def prompt(input, recursive: false)
     logs << SessionLog.new(
       scene: @state.scenes.count,
       role: :user,
@@ -90,6 +90,10 @@ class Session < ApplicationRecord
     handle_response(response)
     self.update_attribute(:state, @state.to_json)
     self.update_attribute(:cost, (cost || 0) + calculate_cost(response))
+    if status == :tool_result
+      raise 'Recursive prompting' if recursive
+      prompt(nil, recursive: true)
+    end
   end
 
   def request(input)
@@ -121,7 +125,6 @@ class Session < ApplicationRecord
   def messages(input)
     messages = [
       { role: :system, template: :system },
-      { role: :system, template: :location_description },
     ].concat(scene_logs.map do |log|
       { role: log.role, content: log.content, tool_calls: log.tool_calls, tool_call_id: log.tool_call_id }.compact
     end)
@@ -130,7 +133,7 @@ class Session < ApplicationRecord
     end
     case status
     when :initial
-      messages << { role: :system, template: :generate_description }
+      messages << { role: :system, template: :initial}
     when :pending_classification
       messages << { role: :system, template: :classify_response }
     when :tool_result

@@ -16,7 +16,7 @@ module RpgAi
         },
         'Temple of Dumathoin' => {
           description: 'A large temple dedicated to the dwarven god Dumathoin - god of mining and secrets under the mountain.',
-          objects: [{
+          npcs: [{
             name: '<Head Priest>',
             description: 'The head priest of the Temple of Dumathoin in Archenbridge',
             secrets: [
@@ -69,6 +69,10 @@ module RpgAi
 
     def location
       @locations[@current_location]
+    end
+
+    def npcs
+      @locations
     end
 
     def response_schema

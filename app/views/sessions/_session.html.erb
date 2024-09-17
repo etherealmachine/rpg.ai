@@ -3,10 +3,10 @@
   <p>Current Cost: <%= session.cost %></p>
 
   <h1>Inventory</h1>
-  <dl>
-    <% (session.state || {})[:inventory]&.each do |name, item| %>
+  <dl class="grid grid-cols-2 gap-4">
+    <% (session.state&.dig('inventory') || []).each do |name, item| %>
       <dt><%= name %></dt>
-      <dd><%= item[:amount] %></dd>
+      <dd><%= item['amount'] %></dd>
     <% end %>
   </dl>
 

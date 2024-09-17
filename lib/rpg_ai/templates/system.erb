@@ -7,10 +7,19 @@ Make up names or content as directed by system prompts like <Make up a name> or
 
 Speak in the present tense.
 
+There's no need to prompt the player (e.g. "what do you do?"), they can direct
+themselves.
 
-<%- if state.scenes -%>
+Locations:
+<%= state.locations.as_json %>
+
 Session summary:
+<%- if state.scenes.present? -%>
 <%- state.scenes.each do |scene| -%>
   - <%= scene[:location] %>: <%= scene[:summary] %>
 <%- end -%>
+<%- else -%>
+  - None
 <%- end -%>
+
+Current Location: <%= state.current_location %>

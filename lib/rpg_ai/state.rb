@@ -83,6 +83,30 @@ module RpgAi
             description: "The narration of the scene. Narration should include NPC's and dialog as necessary",
             type: :string,
           },
+          items: {
+            description: "Items that should be added or removed from the character's inventory",
+            type: :array,
+            items: {
+              type: :object,
+              properties: {
+                item: {
+                  description: 'Item name',
+                  type: :string,
+                },
+                operation: {
+                  description: 'Operation to perform on the item',
+                  type: :string,
+                  enum: ['add', 'remove'],
+                },
+                amount: {
+                  description: 'Amount of items to add or remove',
+                  type: :integer,
+                },
+              },
+              required: ['item', 'operation', 'amount'],
+              additionalProperties: false,
+            },
+          },
           npcs: {
             description: 'Any NPCs that are included in the narration',
             type: :array,
@@ -104,12 +128,16 @@ module RpgAi
             },
           },
         },
-        required: ['narration', 'npcs'],
+        required: ['narration', 'items', 'npcs'],
         additionalProperties: false,
       }
     end
 
     def handle_response(response)
+      response[:items].each do |args|
+        self.add_item(args) if args[:operation] == 'add'
+        self.remove_item(args) if args[:operation] == 'remove'
+      end
       response[:npcs].each do |args|
         self.update_npc(args)
       end
@@ -134,7 +162,25 @@ module RpgAi
     end, "Doing something in the face of impending peril", {}
 
     publish def parley(params)
-      "The NPC agrees to the request of #{params[:request_summary]}. Respond as the NPC."
+      modifier = {
+        'Non-Existent' => -2,
+        'Trivial' => -1,
+        'Valuable' => 0,
+        'Critical' => 1,
+      }[params[:leverage_rating]] + {
+        'Trivial' => 2,
+        'Minor' => 1,
+        'Substantial' => 0,
+        'Major' => -1,
+        'Irreplaceable' => -2,
+      }[params[:request_value]]
+      if modifier == 0
+        "The NPC can't quite agree but is close. Respond as the NPC and ask for either more leverage or less value."
+      elsif modifier > 0
+        "The NPC agrees to the request. Respond as the NPC."
+      else
+        "The NPC rejects the requeset. Respond as the NPC."
+      end
     end, "The character is trying to get the NPC to do something for them or
     give something to them. In order for this to even be attempted, the 
     characters need Leverage. Leverage can be nasty or nice, the tone doesn't
@@ -156,10 +202,15 @@ module RpgAi
       request_category: {
         description: "What is the category of the character(s) request?",
         type: :string,
-        enum: ['nothing', 'item', 'action', 'influence'],
+        enum: ['Nothing', 'Item', 'Action', 'Influence'],
       },
-      request_summary: {
-        description: "Summarize what the character(s) are asking for",
+      request_value: {
+        description: "How valuable is the thing being given to the NPC?",
+        type: :string,
+        enum: ['Trivial', 'Minor', 'Substantial', 'Major', 'Irreplaceable'],
+      },
+      value_reasoning: {
+        description: "What is the reasoning behind the rating for the value?",
         type: :string,
       },
     }
@@ -277,6 +328,7 @@ module RpgAi
 
     publish def remove_item(params)
       @inventory[params[:item]] = { amount: 0 } if @inventory[params[:item]].nil?
+      # TODO: Delete items at 0, handle negative inventory
       @inventory[params[:item]][:amount] -= params[:amount]
       "#{params[:amount]} #{params[:item]} have been removed from the inventory."
     end, "The characters gave away, used, or lost some items.", {

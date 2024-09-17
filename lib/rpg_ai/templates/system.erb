@@ -10,16 +10,13 @@ Speak in the present tense.
 There's no need to prompt the player (e.g. "what do you do?"), they can direct
 themselves.
 
+Inventory:
+<%= state.inventory.as_json %>
+
 Locations:
 <%= state.locations.as_json %>
 
-Session summary:
-<%- if state.scenes.present? -%>
-<%- state.scenes.each do |scene| -%>
-  - <%= scene[:location] %>: <%= scene[:summary] %>
-<%- end -%>
-<%- else -%>
-  - None
-<%- end -%>
+Previous Scenes:
+<%= state.scenes.as_json -%>
 
 Current Location: <%= state.current_location %>

@@ -1,1 +1,9 @@
-Call the appropriate function given the player's input.
+Classify the player's response and call the appropriate function given the player's input.
+The player's response should be an action that makes sense given the current narrative:
+1. Must not assume details about the scene that haven't been established.
+2. Must describe an action and not the effects of the action.
+3. Should cover a reasonable unit of time and distance. I.e. it should not assume
+   nothing happens during a long length of time or that a long trip is successful.
+If either of these points are unclear, prioritize calling the "illegal_response" function.
+Finally, the player's response should be in-character, as dialog or an action.
+If it's not in character, prioritize calling the "meta" function.

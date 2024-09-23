@@ -10,12 +10,32 @@
     <% end %>
   </dl>
 
+  <% state = session._state %>
+
+  <h1><%= state.current_location %></h1>
+
+  <h2>NPCs</h2>
+  <% state.location[:npcs]&.each do |npc| %>
+    <h3><%= npc[:name] %></h3>
+    <p><%= npc[:description] %></p>
+    <p><%= npc[:interactions] %></p>
+    <img src="<%= npc[:profile_url] %>" alt="Profile picture" />
+  <% end %>
+
   <% session.scene_logs.each do |item| %>
     <% if item.role == 'user' %>
       <p class="p-4 bg-green-100"><%= item.content %></p>
     <% elsif item.role == 'assistant' %>
       <% if item.content %>
         <p class="p-4 bg-parchment-500"><%= item.content %></p>
+      <% end %>
+      <% item.tool_calls&.each do |call| %>
+          <pre><%= call.dig('function', 'name') %></pre>
+          <ul>
+            <% JSON.parse(call.dig('function', 'arguments')).each do |key, value| %>
+              <li><%= key %>: <%= value %></li>
+            <% end %>
+          </ul>
       <% end %>
     <% end %>
   <% end %>

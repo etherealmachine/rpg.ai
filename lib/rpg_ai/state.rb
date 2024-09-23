@@ -12,36 +12,36 @@ module RpgAi
           hooks: [
             'The last pilgrimage sent to the Monastery of the Glittering Caverns has been gone for over a month.',
           ],
-          locations: ['Temple of Dumathoin', 'Docks', 'Forest Road'],
+          connected_locations: ['Temple of Dumathoin', 'Docks', 'Forest Road'],
         },
         'Temple of Dumathoin' => {
           description: 'A large temple dedicated to the dwarven god Dumathoin - god of mining and secrets under the mountain.',
           npcs: [{
             name: '<Head Priest>',
             description: 'The head priest of the Temple of Dumathoin in Archenbridge',
+            disposition: '',
             secrets: [
               "The priest doesn't know it, but the letters can reveal the deteriorating state of the abbot's mind and increasing paranoia. The monastery hasn't been under attack by goblins - it's a psyker worm, up from the deep underdark that is infiltrating the abbot's mind.",
               'For the last few months, the priest has been receiving increasingly more strident letters from the abbot regarding goblin attacks on the monastery.',
               'Brother <Bookkeeper>, the bookkeeper, thinks someone has been skimming funds from the Glittering Caverns, selling healing crystals on the side.',
             ],
-            interactions: [],
           }],
         },
         'Docks' => {
           description: 'Bustling docks with ore coming downriver from the mountain mines and equipment and goods coming upriver from the coast.',
-          locations: ['Falls of the Fish People'],
+          connected_locations: ['Falls of the Fish People'],
         },
         'Forest Road' => {
           description: 'Abandoned road leading into the mountains. Rumors say the elves of the forest delved too deep into dark magic and brought down their doom.',
-          locations: ['High Mountain Vale'],
+          connected_locations: ['High Mountain Vale'],
         },
         'Falls of the Fish People' => {
           description: '',
-          locations: ['High Mountain Vale'],
+          connected_locations: ['High Mountain Vale'],
         },
-        'High Mountain Value' => {
+        'High Mountain Vale' => {
           description: '',
-          locations: ['Monastery of the Glittering Caverns', 'Goblin Cave'],
+          connected_locations: ['Monastery of the Glittering Caverns', 'Goblin Cave'],
         },
         'Goblin Cave' => {
           description: '',
@@ -121,9 +121,16 @@ module RpgAi
                   description: 'The string previously used to refer to the NPC, e.g. <Male dwarf>.',
                   type: :string,
                 },
-                description: { type: :string },
+                updated_description: {
+                  description: "Description of the NPC. Can be left empty if the description hasn't changed.",
+                  type: :string
+                },
+                interaction: {
+                  description: "Summarize the player's interaction with the NPC (third-person past tense). Should be left empty if they player's haven't interacted with them.",
+                  type: :string
+                },
               },
-              required: ['name', 'reference', 'description'],
+              required: ['name', 'reference', 'updated_description', 'interaction'],
               additionalProperties: false,
             },
           },
@@ -144,8 +151,37 @@ module RpgAi
       response[:narration]
     end
 
+    publish def meta(params)
+      "Go ahead and answer the player's question based on your understanding of the adventure text."
+    end, "The player is asking something meta about the game itself, or out-of-character", {
+      question: {
+        description: 'The question the player is asking.',
+        type: :string,
+      },
+    }
+
+    publish def illegal_response(params)
+      "Go out-of-character and non-narrative, tell the player what they did wrong, and ask them to try again."
+    end, "The player is assuming things that have not been established or attempting to describe the effects of an action, not just the action itself", {
+      action: {
+        description: 'The action the player has described.',
+        type: :string,
+      },
+      effect: {
+        description: 'The effect the player has described.',
+        type: :string,
+      },
+      assumptions: {
+        description: "Assumptions the player is making that haven't been established",
+        type: :array,
+        items: {
+          type: :string,
+        },
+      },
+    }
+
     publish def hack_and_slash(params)
-      "TODO"
+      "The attack is successful, it damages the target appropriately for the type of attack."
     end, "Attacking a prepared enemy", {
       target: {
         description: 'The name of the target for the attack',
@@ -179,7 +215,7 @@ module RpgAi
       elsif modifier > 0
         "The NPC agrees to the request. Respond as the NPC."
       else
-        "The NPC rejects the requeset. Respond as the NPC."
+        "The NPC rejects the request. Respond as the NPC."
       end
     end, "The character is trying to get the NPC to do something for them or
     give something to them. In order for this to even be attempted, the 
@@ -243,9 +279,13 @@ module RpgAi
 
     publish def interrogate_scene(params)
       "Answer the question."
-    end, "Asking a clarifying question about the scene description - the answer
-    should not need to involve touching or physically manipulating anything.",
-    {}
+    end, "Asking a clarifying question about the current location - the answer should not need to involve touching or physically manipulating anything.",
+    {
+      question: {
+        description: 'The question being asked.',
+        type: :string,
+      },
+    }
 
     publish def interact_with_scene(params)
       "Describe the object, if any secrets are related to the object, narratively reveal the secret."
@@ -261,16 +301,25 @@ module RpgAi
     }
 
     publish def update_npc(params)
-      location[:objects] ||= []
-      npc = location[:objects].find { |npc| npc[:name] == params[:reference] }
+      location[:npcs] ||= []
+      npc = location[:npcs].find do |npc|
+        npc[:name] == params[:reference] || npc[:name] == params[:name]
+      end
       if npc.present?
         npc[:name] = params[:name]
-        npc[:description] = params[:description]
-        'Gave existing NPC a name'
+        npc[:reference] = params[:reference] unless params[:reference].empty?
+        npc[:description] = params[:updated_description] unless params[:updated_description].empty?
+        npc[:interactions] ||= []
+        npc[:interactions] << params[:interaction] unless params[:interaction].empty?
+        'Updated existing NPC'
       else
-        location[:objects] << {
+        location[:npcs] << {
           name: params[:name],
-          description: params[:description],
+          reference: params[:reference],
+          description: params[:updated_description],
+          interactions: params[:interaction].empty? ? [] : [params[:interaction]],
+          # TODO: so ugly
+          profile_url: Session.first.generate_image(params[:updated_description]),
         }
         'Created a new NPC'
       end
@@ -283,22 +332,28 @@ module RpgAi
         description: 'The string previously used to refer to the NPC, e.g. <Male dwarf>.',
         type: :string,
       },
-      description: {
-        description: 'A general description of the NPC.',
+      updated_description: {
+        description: "Updated description of the NPC. Should be left empty if the description hasn't changed.",
+        type: :string,
+      },
+      interaction: {
+        description: "Summarize the player's interaction with the NPC (third-person past tense). Should be left empty if they player's haven't interacted with them.",
         type: :string,
       }
     }
 
     publish def change_scene(params)
-      if locations.include?(params[:new_location])
+      if location[:connected_locations]&.include?(params[:new_location])
         scenes << {
           location: @current_location,
           summary: params[:summary],
         }
         @current_location = params[:new_location]
         "Location changed to #{@current_location}"
+      elsif locations.include?(params[:new_location])
+        "Location exists but is not connected to the current one. Go out-of-character and non-narrative, tell the player what their trying isn't possible and why, and to try something different."
       else
-        "Location does not exist. If this location is part of the current location (a sub-location), continue with the scene. Otherwise, ask the user to clarify and give them the list of locations connected to the current one."
+        "Location does not exist. If this location is part of the current location (a sub-location), continue with the scene. Otherwise, go out-of-character and non-narrative and ask the user to clarify and give them the list of locations connected to the current one."
       end
     end, "Move to a new location.", {
       new_location: {
@@ -306,7 +361,7 @@ module RpgAi
         type: :string,
       },
       summary: {
-        description: 'Summary of events at the current location.',
+        description: 'Summary of events at the previous location.',
         type: :string,
       },
     }

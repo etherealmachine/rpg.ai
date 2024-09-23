@@ -16,11 +16,16 @@ class Session < ApplicationRecord
   def custom_initialization
     @log = []
     @client = OpenAI::Client.new(
-      access_token: Rails.application.credentials.openai[:access_token]
+      access_token: Rails.application.credentials.openai[:access_token],
+      request_timeout: 300,
     )
     @model = 'gpt-4o-mini-2024-07-18'
     #@model = 'gpt-4o-2024-08-06'
     @state = RpgAi::State.from_json(self.state)
+  end
+
+  def _state
+    @state
   end
 
   def scene_logs
@@ -96,6 +101,12 @@ class Session < ApplicationRecord
     end
   end
 
+  # DALL·E 2, 256x256, 512x512 or 1024x1024
+  def generate_image(input, size: 256)
+    response = @client.images.generate(parameters: { prompt: input, size: "#{size}x#{size}" })
+    response.dig("data", 0, "url")
+  end
+
   def request(input)
     if status == :pending_classification
       {
@@ -110,6 +121,7 @@ class Session < ApplicationRecord
         model: @model,
         messages: messages(input),
         temperature: 0.7,
+        tools: @state.class.published_function_specs,
         response_format: {
           type: :json_schema,
           json_schema: {
